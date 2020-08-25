@@ -12,7 +12,7 @@ Infers an image's type by looking at its initial values and comparing against so
 >>> import Codec.ImageType
 >>> import System.IO
 >>> import qualified Data.ByteString as B
->>> 
+>>>
 >>> h <- openFile "/tmp/1_webp_ll.webp" ReadMode
 >>> bytes <- hGet h 32
 >>> B.isInfixOf "RIFF" bytes
@@ -37,11 +37,15 @@ Just ()
 -}
 
 module Codec.ImageType (
-  -- * Actions
+  -- * Testing files
   getFileType,
   getFileTypes,
 
-  -- * Predicates
+  -- * Testing file contents
+  getImageType,
+  getImageTypes,
+
+  -- * Predicates on files
   isJpeg,
   isPng,
   isGif,
@@ -56,7 +60,7 @@ module Codec.ImageType (
   isWebp,
   isExr,
 
-  -- * Getting file type name
+  -- * Predicates on file contents
   testJpeg,
   testPng,
   testGif,
@@ -77,7 +81,7 @@ import System.IO                        (withFile, IOMode(ReadMode))
 import Data.ByteString                  (ByteString, length, hGet, head, take, drop, index, isPrefixOf)
 import qualified Data.ByteString as BS
 import Control.Monad                    (guard)
-import Data.Maybe                       (isJust, catMaybes, listToMaybe)
+import Data.Maybe                       (isJust, mapMaybe, catMaybes, listToMaybe)
 import Control.Applicative              ((<$>))
 
 -- | Performs an action on the first 32-bytes of a given file.
@@ -94,15 +98,15 @@ testJpeg bytes = [ "jpeg"
                  ]
 
 -- | Checks if file is @jpeg@.
--- 
--- >>> import Codec.ImageType 
+--
+-- >>> import Codec.ImageType
 -- >>> import Control.Monad
 -- >>> import System.Directory
--- >>> 
--- >>> 
+-- >>>
+-- >>>
 -- >>> getDirectoryContents "." >>= filterM doesFileExist >>= filterM isJpeg
 -- ["file2.jpeg","file1.jpeg"]
--- 
+--
 isJpeg :: FilePath -> IO Bool
 isJpeg file = isJust <$> reading file testJpeg
 
@@ -160,7 +164,7 @@ testPbm bytes = [ "pbm"
                 , index bytes(2) `BS.elem` " \t\n\r"
                 ]
 
--- | Checks if file is @pbm@. 
+-- | Checks if file is @pbm@.
 isPbm :: FilePath -> IO Bool
 isPbm file = isJust <$> reading file testPbm
 
@@ -248,26 +252,37 @@ tests = [testJpeg, testPng, testGif,
          testXbm, testBmp, testWebp,
          testExr]
 
--- | Gets a ginel possible file types based on fairly arbitrary tie
--- breaking.
--- 
+-- | Given file data, gets a single possible file type based on fairly arbitrary
+-- tiebreaking. Returns @Nothing@ if no match is found.
+getImageType :: ByteString -> Maybe String
+getImageType = listToMaybe . getImageTypes
+
+-- | Given file data, gets a list of possible file types based on the contents
+-- of a file. Returns the empty list if no match is found.
+getImageTypes :: ByteString -> [String]
+getImageTypes bytes = mapMaybe ($ bytes) tests
+
+-- | Reads a file and gets a single possible file type based on fairly arbitrary
+-- tie breaking.
+--
 -- >>> import System.Directory
 -- >>> import Control.Monad
 -- >>> getDirectoryContents "." >>= filterM doesFileExist >>= mapM getFileType
 -- [Just "rast",Just "jpeg",Nothing,Just "webp",Just "gif",Just "pgm",Just "webp",Nothing,Just "webp",Just "exr"]
--- 
+--
 getFileType :: FilePath -> IO (Maybe String)
 getFileType file = reading file $ \bytes -> do
   listToMaybe $ catMaybes [ test bytes | test <- tests ]
 
--- | Gets possible file types. Returns empty list if nothing is found,
--- otherwise a list of matches.
--- 
+-- | Reads a file and gets possible file types. Returns empty list if nothing is
+-- found, otherwise a list of matches.
+--
 -- >>> import System.Directory
 -- >>> import Control.Monad
 -- >>> getDirectoryContents "." >>= filterM doesFileExist >>= mapM getFileTypes
 -- [["rast"],["jpeg"],[],["webp"],["gif"],["pgm"],["webp"],[],["webp"],["exr"]]
--- 
+--
 getFileTypes :: FilePath -> IO [String]
 getFileTypes file = reading file $ \bytes -> do
   catMaybes [ test bytes | test <- tests ]
+
