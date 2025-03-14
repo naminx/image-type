@@ -245,12 +245,23 @@ testExr bytes = [ "exr"
 isExr :: FilePath -> IO Bool
 isExr file = isJust <$> reading file testExr
 
+-- | SVG. Returns @Just "svg"@ if file satisfies check.
+testSvg :: ByteString -> Maybe String
+testSvg bytes = [ "svg+xml"
+                | isPrefixOf "<svg" bytes || isPrefixOf "<?xml" bytes
+                ]
+
+-- | Checks if file is @svg@.
+isSvg :: FilePath -> IO Bool
+isSvg file = isJust <$> reading file testSvg
+
+
 tests :: [ByteString -> Maybe String]
 tests = [testJpeg, testPng, testGif,
          testTiff, testRgb, testPbm,
          testPgm, testPpm, testRast,
          testXbm, testBmp, testWebp,
-         testExr]
+         testExr, testSvg]
 
 -- | Given file data, gets a single possible file type based on fairly arbitrary
 -- tiebreaking. Returns @Nothing@ if no match is found.
