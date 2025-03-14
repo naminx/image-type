@@ -59,6 +59,8 @@ module Codec.ImageType (
   isBmp,
   isWebp,
   isExr,
+  isSvg,
+  isAvif,
 
   -- * Predicates on file contents
   testJpeg,
@@ -73,7 +75,9 @@ module Codec.ImageType (
   testXbm,
   testBmp,
   testWebp,
-  testExr
+  testExr,
+  testSvg,
+  testAvif
   ) where
 
 import Prelude hiding                   (length, head, take, drop)
@@ -255,13 +259,23 @@ testSvg bytes = [ "svg+xml"
 isSvg :: FilePath -> IO Bool
 isSvg file = isJust <$> reading file testSvg
 
+-- | AV1 Image File Format (AVIF). Returns @Just "avif"@ if file satisfies check.
+testAvif :: ByteString -> Maybe String
+testAvif bytes = [ "avif"
+                 | length bytes >= 12  -- Ensure we have enough bytes to check
+                 , BS.isInfixOf "ftypavif" (take 32 bytes)  -- Look for signature within first 32 bytes
+                 ]
+
+-- | Checks if file is @avif@.
+isAvif :: FilePath -> IO Bool
+isAvif file = isJust <$> reading file testAvif
 
 tests :: [ByteString -> Maybe String]
 tests = [testJpeg, testPng, testGif,
          testTiff, testRgb, testPbm,
          testPgm, testPpm, testRast,
          testXbm, testBmp, testWebp,
-         testExr, testSvg]
+         testExr, testSvg, testAvif]
 
 -- | Given file data, gets a single possible file type based on fairly arbitrary
 -- tiebreaking. Returns @Nothing@ if no match is found.
